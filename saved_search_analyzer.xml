@@ -159,7 +159,18 @@
   search="is_scheduled=1" search="disabled=0"
   |fields search title author cron_schedule eai:acl.app dispatch.earliest_time dispatch.latest_time action.summary_index search
   |rename title as savedsearch_name, dispatch.earliest_time as earliest_time, dispatch.latest_time AS latest_time
-]</query>
+]
+|join left savedsearch_name 
+[
+|search index=_audit action=search NOT search_id="rsa_scheduler*" NOT *ACCELERATE_DM*
+(info="completed"  OR status=success)
+| stats count as NumSearches  p90(total_run_time) AS p90TimeInSeconds avg(total_run_time) AS AvgRunTimeInSeconds median(total_run_time) AS MedianRunTimeInSeconds by savedsearch_name
+| eval MedianRunTimeInSeconds=round(MedianRunTimeInSeconds,1)
+| eval p90TimeInSeconds=round(p90TimeInSeconds,1)
+] 
+|addcoltotals skip_count labelfield=savedsearch_name label=Total
+|sort - skip_count
+          </query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
